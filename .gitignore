@@ -1,0 +1,21 @@
+# Dependencies & caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+!terraform/terraform.tfvars.example
+*.tfplan
+*.tfgraph
+
+# OS / editor
+.DS_Store
+*.swp

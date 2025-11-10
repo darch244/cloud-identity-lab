@@ -1,0 +1,11 @@
+region   = "us-east-1"
+team     = "security-engineering"
+environment = "lab"
+
+# Point this at a LocalStack instance to keep every resource fully offline.
+#   LocalStack: docker run --rm -p 4566:4566 localstack/localstack
+# Then: terraform apply -var-file=terraform.tfvars.example
+localstack_endpoint = ""
+
+# Required against LocalStack (it has no real credential metadata).
+skip_credentials_validation = false
