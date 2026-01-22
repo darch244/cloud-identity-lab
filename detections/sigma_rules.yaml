@@ -1,0 +1,125 @@
+---
+title: ciam-passrole-to-lambda
+id: 1a6c4e02-0d6a-4e7d-9b41-9d14efc91652
+status: test
+description: >
+  iam:PassRole followed by lambda:CreateFunction/UpdateFunctionCode
+  (Scenario 01 — app-svc-user PassRole to admin Lambda exec role)
+author: Mostafa Ibrahim (DarcHacker)
+level: high
+logsource:
+  product: aws
+  service: cloudtrail
+detection:
+  selection_role:
+    eventSource: iam.amazonaws.com
+    eventName: PassRole
+  selection_lambda:
+    eventSource: lambda.amazonaws.com
+    eventName:
+      - CreateFunction
+      - UpdateFunctionCode
+  condition: selection_role and selection_lambda
+falsepositives:
+  - Legitimate CI/CD pipeline managing its own Lambda functions
+tags:
+  - attack.credential_access
+  - attack.t1548.004
+---
+title: ciam-assume-role-chain
+id: 8e0b9d92-8103-4a89-b2f4-b1e84da29d89
+status: test
+description: >
+  Multiple sts:AssumeRole calls by the same identity within 10 seconds,
+  indicating a privilege-escalation chain (Scenario 02 — dev-user hop)
+author: Mostafa Ibrahim (DarcHacker)
+level: critical
+logsource:
+  product: aws
+  service: cloudtrail
+detection:
+  selection:
+    eventSource: sts.amazonaws.com
+    eventName: AssumeRole
+  filter_role:
+    userIdentity.arn|contains: ':role/'
+  condition: selection and not filter_role and count() by (userIdentity.arn) > 1 within 10s
+falsepositives:
+  - Legitimate multi-hop cross-account role chains in complex orgs
+tags:
+  - attack.defense_evasion
+  - attack.t1078.004
+---
+title: ciam-public-s3-exfil
+id: e8f44e85-3e43-4f57-8d41-35c5e4648d8c
+status: test
+description: >
+  GetObject or ListBucket from a non-user principal against an
+  intentionally public bucket (Scenario 03 — analytics-data)
+author: Mostafa Ibrahim (DarcHacker)
+level: high
+logsource:
+  product: aws
+  service: cloudtrail
+detection:
+  selection:
+    eventSource: s3.amazonaws.com
+    eventName:
+      - GetObject
+      - ListBucket
+  filter_user:
+    userIdentity.arn|contains: ':user/'
+  condition: selection and not filter_user
+falsepositives:
+  - Intentionally public-read assets served by a CDN bucket
+tags:
+  - attack.collection
+  - attack.t1530
+---
+title: ciam-public-secret-read
+id: 31d02ea2-411f-4503-a1b9-3bc06596f807
+status: test
+description: >
+  GetSecretValue from a non-service-identity against a publicly readable
+  Secrets Manager secret (Scenario 03 — prod/api-key)
+author: Mostafa Ibrahim (DarcHacker)
+level: high
+logsource:
+  product: aws
+  service: cloudtrail
+detection:
+  selection:
+    eventSource: secretsmanager.amazonaws.com
+    eventName: GetSecretValue
+  filter_assumed:
+    userIdentity.type: AssumedRole
+  condition: selection and not filter_assumed
+falsepositives:
+  - Service-linked secrets reads from a well-scoped workload role
+tags:
+  - attack.credential_access
+  - attack.t1552.005
+---
+title: ciam-public-kms-decrypt
+id: 77b79c71-c9b2-43e5-a11f-1d99a4a3cf2a
+status: test
+description: >
+  KMS:Decrypt from any non-root identity against a KMS key whose key policy
+  allows Principal: *  (Scenario 03 — analytics key)
+author: Mostafa Ibrahim (DarcHacker)
+level: medium
+logsource:
+  product: aws
+  service: cloudtrail
+detection:
+  selection:
+    eventSource: kms.amazonaws.com
+    eventName: Decrypt
+  filter_root:
+    userIdentity.arn|endswith: ':root'
+  condition: selection and not filter_root
+falsepositives:
+  - Normal application workload decryption
+tags:
+  - attack.credential_access
+  - attack.t1552.005
