@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  validate:
+    name: pytest + ruff + mypy + mock scan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint with ruff
+        run: ruff check engine tests
+
+      - name: Format check with ruff
+        run: ruff format --check engine tests
+
+      - name: Type-check with mypy
+        run: mypy engine
+
+      - name: Unit tests (offline, mock IAM data)
+        run: pytest -q
+
+      - name: Local mock scan smoke test
+        run: python -m engine.cli analyze --mock --output json
+
+      - name: Terraform syntax (fmt) check
+        run: terraform fmt -check -recursive
+        continue-on-error: true
